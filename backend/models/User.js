@@ -13,4 +13,11 @@ const User = sequelize.define('User', {
   },
 });
 
+User.associate = (models) => {
+  User.hasMany(models.File, {
+    foreignKey: 'UserId',
+    as: 'files',
+  });
+};
+
 module.exports = User;

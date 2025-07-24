@@ -1,10 +1,9 @@
+const { GraphQLUpload } = require('graphql-upload');
+const { User, File } = require('../models');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../utils/auth');
-const User = require('../models/User');
-const File = require('../models/File');
 const path = require('path');
 const fs = require('fs');
-const { GraphQLUpload } = require('graphql-upload');
 
 module.exports = {
   Upload: GraphQLUpload,
@@ -17,16 +16,19 @@ module.exports = {
 
     myFiles: async (_, __, { user }) => {
       if (!user) throw new Error('Not authenticated');
-      return await File.findAll({
-        where: { UserId: user.userId },
-        include: { model: User, as: 'uploadedBy' },
-      });
+      return await File.findAll({ where: { UserId: user.userId } });
     },
 
     allFiles: async () => {
       return await File.findAll({
+        include: [
+          {
+            model: User,
+            as: 'uploadedBy',
+            attributes: ['email'],
+          },
+        ],
         order: [['createdAt', 'DESC']],
-        include: { model: User, as: 'uploadedBy' },
       });
     },
   },
@@ -42,17 +44,14 @@ module.exports = {
     login: async (_, { email, password }) => {
       const user = await User.findOne({ where: { email } });
       if (!user) throw new Error('Invalid credentials');
-
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) throw new Error('Invalid credentials');
-
       const token = generateToken(user);
       return { token, user };
     },
 
     uploadFile: async (_, { file }, { user }) => {
       if (!user) throw new Error('Not authenticated');
-
       const { createReadStream, filename, mimetype } = await file;
       const uploadPath = path.join(__dirname, '..', 'uploads', filename);
       const stream = createReadStream();
@@ -64,17 +63,58 @@ module.exports = {
           .on('error', reject)
       );
 
-      const savedFile = await File.create({
+      return await File.create({
         filename,
         originalName: filename,
         mimetype,
         path: `/uploads/${filename}`,
         UserId: user.userId,
       });
+    },
 
-      return await File.findByPk(savedFile.id, {
-        include: { model: User, as: 'uploadedBy' },
-      });
+    deleteFile: async (_, { id }, { user }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const file = await File.findByPk(id);
+      if (!file) throw new Error('File not found');
+      if (file.UserId !== user.userId) throw new Error('Not authorized');
+
+      const filePath = path.join(__dirname, '..', file.path);
+
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.error('File deletion failed:', err.message);
+      }
+
+      await file.destroy();
+      return true;
+    },
+
+    editFile: async (_, { id, filename }, { user }) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const file = await File.findByPk(id);
+      if (!file) throw new Error('File not found');
+      if (file.UserId !== user.userId) throw new Error('Not authorized');
+
+      const oldPath = path.join(__dirname, '..', file.path);
+      const newPath = path.join(__dirname, '..', 'uploads', filename);
+
+      try {
+        fs.renameSync(oldPath, newPath);
+      } catch (err) {
+        throw new Error('Failed to rename file on disk: ' + err.message);
+      }
+
+      file.filename = filename;
+      file.originalName = filename;
+      file.path = `/uploads/${filename}`;
+      await file.save();
+
+      return file;
     },
   },
 };

@@ -1,7 +1,5 @@
-// models/File.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
-const User = require('./User');
 
 const File = sequelize.define('File', {
   filename: {
@@ -18,10 +16,15 @@ const File = sequelize.define('File', {
   path: {
     type: DataTypes.STRING,
   },
+}, {
+  timestamps: true,
 });
 
-// Relation: File belongs to User
-File.belongsTo(User);
-User.hasMany(File);
+File.associate = (models) => {
+  File.belongsTo(models.User, {
+    foreignKey: 'UserId',
+    as: 'uploadedBy',
+  });
+};
 
 module.exports = File;

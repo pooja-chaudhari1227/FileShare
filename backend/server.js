@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const { ApolloServer } = require('apollo-server-express');
 const { graphqlUploadExpress } = require('graphql-upload');
@@ -13,7 +12,6 @@ const { verifyToken } = require('./utils/auth');
 
 const app = express();
 
-// ✅ Strict and safe CORS config
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || origin === 'http://localhost:3000') {
@@ -30,7 +28,6 @@ app.use(express.json());
 app.use(graphqlUploadExpress());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ✅ Apollo Server with Auth Context
 const server = new ApolloServer({
   typeDefs,
   resolvers,
@@ -50,14 +47,13 @@ const server = new ApolloServer({
 
 async function start() {
   try {
-    await sequelize.sync(); // Sync models with DB
+    await sequelize.sync(); 
     await server.start();
     
-    // ✅ Disable Apollo’s internal CORS handling
     server.applyMiddleware({ app, cors: false });
 
     app.listen({ port: 4000 }, () =>
-      console.log(`🚀 Server ready at http://localhost:4000${server.graphqlPath}`)
+      console.log(` Server ready at http://localhost:4000${server.graphqlPath}`)
     );
   } catch (e) {
     console.error('Startup error:', e);

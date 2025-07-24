@@ -14,8 +14,8 @@ module.exports = gql`
     originalName: String!
     mimetype: String
     path: String
-    createdAt: String!
-    uploadedBy: User!
+    createdAt: String
+    uploadedBy: User
   }
 
   type AuthPayload {
@@ -33,5 +33,7 @@ module.exports = gql`
     register(email: String!, password: String!): AuthPayload
     login(email: String!, password: String!): AuthPayload
     uploadFile(file: Upload!): File
+    deleteFile(id: ID!): Boolean
+    editFile(id: ID!, filename: String!): File
   }
 `;
